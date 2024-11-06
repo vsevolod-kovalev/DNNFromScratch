@@ -9,11 +9,10 @@ class MNIST:
         def fillXY(X, Y, path: str) -> None:
             f = open(path, "r")
             for line in f:
-
                 line = line.strip().split(',')
                 if not line or not line[0].isdigit():
                     continue
-                X.append([int(pixel) for pixel in line[1:]])
+                X.append([float(pixel)/255 for pixel in line[1:]])
                 Y.append(int(line[0]))
             f.close()
         try:
@@ -22,7 +21,9 @@ class MNIST:
             self.data = [[X_train, Y_train], [X_test, Y_test]]
         except Exception as e:
             raise Exception("Error reading files!") from e
-    
-r = MNIST('datasets/mnist/mnist_train.csv', 'datasets/mnist/mnist_test.csv')
-r.load_data()
-(x_train, y_train), (x_test, y_test) = r.data
+    @staticmethod
+    def print_sample(x, y):
+        rows = [x[i:i + 28] for i in range(0, len(x), 28)]
+        for row in rows:
+            print("".join(f"{value:5.2f}" if value != 0 else "  0  " for value in row))
+        print("\nTarget:\t", y)

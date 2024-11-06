@@ -1,5 +1,6 @@
-# This file demonstrates the desired functionality of a neural network model
-# for recognizing handwritten digits using the MNIST dataset. 
+# This file demonstrates the desired functionality of the neural network.
+# The goal is to achieve similar functionality without resorting to 
+# any external Python libraries.
 
 import tensorflow as tf
 import numpy as np
