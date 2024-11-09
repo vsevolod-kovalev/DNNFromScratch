@@ -15,9 +15,8 @@ def main():
     ], 3)
     model.compile('mse', 0.01)
     # model.fit_sample(x_train[0], y_train[0])
-    model.fit_sample([1,1,1], y_train[0])
+    model.fit_sample([1,1,1], [300,300])
 
-    
 if __name__ == "__main__":
     main()
 
