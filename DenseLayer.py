@@ -1,6 +1,6 @@
 import random
 class DenseLayer:
-    def __init__(self, n_neurons: int, activation: str = '_no_activation'):
+    def __init__(self, n_neurons: int, activation: str = '_noActivation'):
         self.n_neurons = n_neurons
         self.layer = []
         self.activation = activation

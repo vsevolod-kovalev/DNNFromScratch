@@ -1,11 +1,14 @@
+# for debugging; remove before release:
+import time
+
 from typing import List
 from DenseLayer import DenseLayer
 
 ROUND_PRECISION = 5
 LRELU_ALPHA = 0.01
+MATH_E_20 = 2.71828182845904523536
 
-
-# TODO: move the function below into Sequential 
+# TODO: move activation functions into Sequential 
 def reLU(z: float, derivative: bool = False) -> float:
     if derivative:
         return 1.0 if z > 0 else 0.0
@@ -14,6 +17,12 @@ def LreLU(z: float, derivative: bool = False) -> float:
     if derivative:
         return 1.0 if z > 0 else LRELU_ALPHA
     return z if z > 0 else LRELU_ALPHA * z
+def sigmoid(z: float, derivative: bool = False) -> float:
+    sig = 1.0 / (1.0 + MATH_E_20 ** (-z))
+    if derivative:
+        return sig * (1.0 - sig)
+    return sig
+
 class Sequential:
     # New vector with shape:        Layer   x   Neuron
     @staticmethod
@@ -43,7 +52,6 @@ class Sequential:
         layers[0].compile(input_size)
         for i in range(1, len(layers)):
             layers[i].compile(layers[i - 1].n_neurons)
-
     def compile(self, loss: str, optimizer: str, learning_rate: float):
         self.learning_rate = learning_rate
         self.loss = loss
@@ -66,6 +74,8 @@ class Sequential:
                     match activation.lower():
                         case '_no_activation':
                             a = z
+                        case 'sigmoid' | 'sig':
+                            a = sigmoid(z)
                         case 'relu':
                             a = reLU(z)
                         case 'lrelu' | 'l_relu' | 'leaky_relu' | 'leakyrelu':
@@ -91,23 +101,28 @@ class Sequential:
                 layer = self.layers[layer_i].layer
                 activation = self.layers[layer_i].activation
                 for neuron_i in range(0, len(layer)):
-                    derivative_so_far = sum(signals[(layer_i, neuron_i)])
+                    derivative_so_far = sum(signals.get((layer_i, neuron_i), [0]))
+                    # Dead neuron found - do not propagate further:
+                    if derivative_so_far == 0.0:
+                        continue
                     weights = layer[neuron_i]
+                    # compute δa / δz - activation gradient - based on the layer's activation function
+                    z = pre_activations[layer_i][neuron_i]
+                    activation_gradient = 0.0
+                    match activation.lower():
+                        case '_no_activation':
+                            activation_gradient = 1.0
+                        case 'sigmoid' | 'sig':
+                            activation_gradient = sigmoid(z, derivative=True)
+                        case 'relu':
+                            activation_gradient = reLU(z, derivative=True)
+                        case 'lrelu' | 'l_relu' | 'leaky_relu' | 'leakyrelu':
+                            activation_gradient = LreLU(z, derivative=True)
+                        case _:
+                            raise Exception("Unknown activation function")
+                    # apply the computed activation gradient to the neuron chain derivative
+                    derivative_so_far *= activation_gradient
                     for weight_i, weight in enumerate(weights):
-                        # compute δa / δz - activation gradient - based on the layer's activation function
-                        z = pre_activations[layer_i][neuron_i]
-                        activation_gradient = 0.0
-                        match activation.lower():
-                            case '_no_activation':
-                                activation_gradient = 1.0
-                            case 'relu':
-                                activation_gradient = reLU(z, derivative=True)
-                            case 'lrelu' | 'l_relu' | 'leaky_relu' | 'leakyrelu':
-                                activation_gradient = LreLU(z, derivative=True)
-                            case _:
-                                raise Exception("Unknown activation function")
-                        # apply the computed activation gradient to the current derivative
-                        derivative_so_far *= activation_gradient
                         # compute δz / δw - the change of each weight - and put it in 'deltas':
                         # the last weight is always bias:
                         if weight_i == len(weights) - 1:
@@ -142,11 +157,15 @@ class Sequential:
         match self.optimizer.lower():
             # Stochastic gradient descent:
             case 'sgd':
+                start_time = time.time()
                 for instance_i in range(len(Y)):
                     deltas, loss = self.step(X[instance_i], Y[instance_i])
                     if instance_i % 500 == 0:
                         print("\n")
                         print(str(instance_i) + " / " + str(len(Y)))
+                        time_elapsed = round(time.time() - start_time, ROUND_PRECISION)
+                        start_time = time.time()
+                        print("Time elapsed (secs)\t", time_elapsed)
                         print("Y\t", Y[instance_i])
                         print("Output\t", Sequential.round_vector(self.outputs[-1]))
                         print("Loss\t", round(loss, ROUND_PRECISION))

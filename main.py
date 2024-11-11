@@ -15,12 +15,11 @@ def main():
             to_onehot(10, y)
         )
     model = Sequential([
-        DenseLayer(20, activation='relu'),
-        DenseLayer(20, activation='relu'),
-        DenseLayer(20, activation='relu'),
-        DenseLayer(10)
+        DenseLayer(10, activation='relu'),
+        DenseLayer(30, activation='relu'),
+        DenseLayer(10, activation='sigmoid')
     ], input_size = len(x_train[0]))
-    model.compile('mse', 'sgd', 0.01)
+    model.compile('mse', 'sgd', 0.1)
     model.fit(x_train, y_train_onehotted)
 
 if __name__ == "__main__":
