@@ -19,7 +19,7 @@ def main():
         DenseLayer(30, activation='relu'),
         DenseLayer(10, activation='sigmoid')
     ], input_size = len(x_train[0]))
-    model.compile('mse', 'sgd', 0.1)
+    model.compile('bce', 'sgd', 0.01)
     model.fit(x_train, y_train_onehotted)
 
 if __name__ == "__main__":

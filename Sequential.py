@@ -1,27 +1,61 @@
-# for debugging; remove before release:
 import time
+import math
 
-from typing import List
+from typing import List, Tuple
 from DenseLayer import DenseLayer
 
 ROUND_PRECISION = 5
 LRELU_ALPHA = 0.01
-MATH_E_20 = 2.71828182845904523536
+Y_EPSILON = 0.01
+SIGMOID_Z_MAX = 30
 
 # TODO: move activation functions into Sequential 
 def reLU(z: float, derivative: bool = False) -> float:
     if derivative:
         return 1.0 if z > 0 else 0.0
     return max(0, z)
+
 def LreLU(z: float, derivative: bool = False) -> float:
     if derivative:
         return 1.0 if z > 0 else LRELU_ALPHA
     return z if z > 0 else LRELU_ALPHA * z
+
 def sigmoid(z: float, derivative: bool = False) -> float:
-    sig = 1.0 / (1.0 + MATH_E_20 ** (-z))
+    sig = 0.0
+    if abs(z) > SIGMOID_Z_MAX:
+        sig = 1.0 if z > 0 else 0.0
+    else:
+        sig = 1.0 / (1.0 + math.exp(-z))
     if derivative:
         return sig * (1.0 - sig)
     return sig
+
+def softmax(Z: List[float], z_i: int, derivative: bool = False) -> float:
+    # shift every z by z(max) to prevent overflow:
+    z_max = max(Z)
+    softmax_z_i = math.exp(Z[z_i] - z_max) / sum([math.exp(z - z_max) for z in Z])
+    if not derivative:
+        return softmax_z_i
+    return softmax_z_i  * (1 - softmax_z_i)
+
+def sanitized_log(y_hat: float) -> float:
+    # math.log is undefined when y_hat == 0
+    return math.log(y_hat) if y_hat > 0 else Y_EPSILON
+
+# TODO: move loss functions into Sequential 
+def MSE(Y_hat, Y) -> Tuple[float, List[float]]:
+    loss = sum([(y_hat - y) ** 2 for y_hat, y in zip(Y_hat, Y)]) / len(Y)
+    loss_gradient = [2 * (y_hat - y) for y_hat, y in zip(Y_hat, Y)]
+    return [loss, loss_gradient]
+def CCE(Y_hat: List[float], Y: List[float]) -> Tuple[float, List[float]]:
+    loss = -sum(y * sanitized_log(y_hat) for y_hat, y in zip(Y_hat, Y)) / len(Y)
+    loss_gradient = [-y / max(y_hat, Y_EPSILON) for y_hat, y in zip(Y_hat, Y)]
+    return loss, loss_gradient
+
+def BCE(Y_hat: List[float], Y: List[int]) -> Tuple[float, List[float]]:
+    loss = -sum(y * sanitized_log(y_hat) + (1 - y) * sanitized_log(1 - y_hat) for y_hat, y in zip(Y_hat, Y)) / len(Y)
+    loss_gradient = [-(y / max(y_hat, Y_EPSILON)) + (1 - y) / max(1 - y_hat, Y_EPSILON) for y_hat, y in zip(Y_hat, Y)]
+    return loss, loss_gradient
 
 class Sequential:
     # New vector with shape:        Layer   x   Neuron
@@ -43,7 +77,7 @@ class Sequential:
     def __init__(self, layers: List[DenseLayer], input_size: int):
         self.layers = layers
         self.learning_rate = 0
-        self.loss = None
+        self.loss_function = None
         self.optimizer = None
         self.outputs = self.zero_layer_neuron(layers)
         self.pre_activations = self.zero_layer_neuron(layers)
@@ -52,9 +86,9 @@ class Sequential:
         layers[0].compile(input_size)
         for i in range(1, len(layers)):
             layers[i].compile(layers[i - 1].n_neurons)
-    def compile(self, loss: str, optimizer: str, learning_rate: float):
+    def compile(self, loss_function: str, optimizer: str, learning_rate: float):
         self.learning_rate = learning_rate
-        self.loss = loss
+        self.loss_function = loss_function
         self.optimizer = optimizer
     def step(self, X, Y):
         # computing neurons' pre-activations and outputs in each layer
@@ -85,18 +119,17 @@ class Sequential:
                     self.outputs[layer_i][neuron_i] = a
             # return the righmost (output) layer
             return self.outputs[-1]
-        def backward(pre_activations, outputs, X, Y):
+        def backward(pre_activations, outputs, X, Y, loss_gradient):
             if not (outputs and Y and pre_activations):
                 raise Exception("Outputs OR/AND Pre-Activations OR/AND Y\tare empty!")
             signals = {}
             deltas = self.zero_layer_neuron_weight(self.layers)
             n_layers = len(outputs)
-            # Calculate errors for each neuron in the output layer:
+            # Calculate loss derivatives for each neuron in the output layer:
             for y_i, y in enumerate(Y):
-                output = outputs[-1][y_i]
-                error = 2 * (output - y)
+                loss_derivative = loss_gradient[y_i]
                 destination = (n_layers - 1, y_i)
-                signals[destination] = [error]
+                signals[destination] = [loss_derivative]
             for layer_i in range(len(self.layers) - 1, -1, -1):
                 layer = self.layers[layer_i].layer
                 activation = self.layers[layer_i].activation
@@ -144,16 +177,21 @@ class Sequential:
                                 signals[destination] = []
                             signals[destination].append(derivative_so_far * weight)
             return deltas
-        output = forward(X)
-        loss = sum([(y_hat - y) ** 2 for y_hat, y in zip(output, Y)]) / len(Y)
-        deltas = backward(self.pre_activations, self.outputs, X, Y)
+        Y_hat = forward(X)
+        loss = 0.0
+        loss_gradient = []
+        match self.loss_function.lower():
+            case 'mse' | 'mean_squared_error':
+                loss, loss_gradient = MSE(Y_hat, Y)
+            case 'cce' | 'categorical_cross_entropy':
+                loss, loss_gradient = CCE(Y_hat, Y)
+            case 'bce' | 'binary_cross_entropy':
+                loss, loss_gradient = BCE(Y_hat, Y)
+            case _:
+                raise Exception('Unknown loss function')
+        deltas = backward(self.pre_activations, self.outputs, X, Y, loss_gradient)
         return [deltas, loss]
     def fit(self, X, Y):
-        match self.loss.lower():
-            case 'mse':
-                pass
-            case _:
-                raise Exception("Unknown loss function")
         match self.optimizer.lower():
             # Stochastic gradient descent:
             case 'sgd':
