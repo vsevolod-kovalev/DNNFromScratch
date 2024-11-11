@@ -1,5 +1,5 @@
 from MNIST import MNIST
-from Sequntial import Sequntial
+from Sequential import Sequential
 from DenseLayer import DenseLayer
 
 def to_onehot(size: int, y: int):
@@ -14,11 +14,13 @@ def main():
         y_train_onehotted.append(
             to_onehot(10, y)
         )
-    model = Sequntial([
-        DenseLayer(10),
+    model = Sequential([
+        DenseLayer(20, activation='relu'),
+        DenseLayer(20, activation='relu'),
+        DenseLayer(20, activation='relu'),
         DenseLayer(10)
     ], input_size = len(x_train[0]))
-    model.compile('mse', 'sgd', 0.001)
+    model.compile('mse', 'sgd', 0.01)
     model.fit(x_train, y_train_onehotted)
 
 if __name__ == "__main__":
