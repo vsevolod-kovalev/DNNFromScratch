@@ -17,9 +17,9 @@ def main():
     model = Sequential([
         DenseLayer(10, activation='relu'),
         DenseLayer(30, activation='relu'),
-        DenseLayer(10, activation='sigmoid')
+        DenseLayer(10, activation='softmax')
     ], input_size = len(x_train[0]))
-    model.compile('bce', 'sgd', 0.01)
+    model.compile('cce', 'sgd', 0.01)
     model.fit(x_train, y_train_onehotted)
 
 if __name__ == "__main__":
