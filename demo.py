@@ -1,6 +1,6 @@
-# This file demonstrates the desired functionality of the neural network.
-# The goal is to achieve similar functionality without resorting to 
-# any external Python libraries.
+# This file shows the desired functionality using TensorFlow and NumPy.
+# The demonstration of the 'raw' functionality that 
+# simulates the logic of this file can be found in main.py.
 
 import tensorflow as tf
 import numpy as np

@@ -12,7 +12,7 @@ class MNIST:
                 line = line.strip().split(',')
                 if not line or not line[0].isdigit():
                     continue
-                X.append([float(pixel)/255 for pixel in line[1:]])
+                X.append([float(pixel) / 255 for pixel in line[1:]])
                 Y.append(int(line[0]))
             f.close()
         try:
@@ -25,5 +25,5 @@ class MNIST:
     def print_sample(x, y):
         rows = [x[i:i + 28] for i in range(0, len(x), 28)]
         for row in rows:
-            print("".join(f"{value:5.2f}" if value != 0 else "  0  " for value in row))
-        print("\nTarget:\t", y)
+            print("".join("* " if value != 0 else ". " for value in row))
+        print("\nTarget Digit:", y)
