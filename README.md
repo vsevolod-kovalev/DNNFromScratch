@@ -73,15 +73,10 @@ The network is built using the Sequential model, similar to TensorFlow's API. La
 
 ## Activation Functions
 
-* **ReLU**: \( f(z) = \max(0, z) \)
-* **Leaky ReLU**: \( f(z) = z \) if \( z > 0 \) else \( \alpha \cdot z \) (where \( \alpha = 0.01 \))
-* **Sigmoid**: \( f(z) = \frac{1}{1 + e^{-z}} \)
-* **Softmax**: Converts logits into probabilities that sum to 1:
-
-  \[
-  \text{softmax}(z_i) = \frac{e^{z_i}}{\sum_{j} e^{z_j}}
-  \]
-
+* **ReLU**: This function returns the input itself if it is greater than zero, otherwise, it returns zero. It is used to introduce non-linearity to the model.
+* **Leaky ReLU**: Similar to ReLU, but instead of returning zero for negative inputs, it returns a small negative value proportional to the input. This slight value ensures that Leaky ReLU never has a gradient of zero.
+* **Sigmoid**: This function maps any input value into the range between 0 and 1. The outputs are shaped like an "S".
+* **Softmax**: Used primarily in the output layer of a classifier, this function converts logits into probabilities by taking the exponentials of each output and then normalizing these values by dividing by the sum of all the exponentials. This ensures that the output values are in the range (0, 1) and sum up to 1, making them interpretable as probabilities.
 ## Loss Functions
 
 * **Mean Squared Error (MSE)**: Commonly used for regression tasks.
@@ -91,11 +86,3 @@ The network is built using the Sequential model, similar to TensorFlow's API. La
 ## Optimizer
 
 * **Stochastic Gradient Descent (SGD)**: Updates weights incrementally for each training sample, which can lead to faster convergence on large datasets.
-
-## Handling the Symmetry Problem
-
-Initializing weights to identical values causes neurons to update identically during training, preventing the network from learning effectively. Random initialization breaks this symmetry, allowing each neuron to learn different features.
-
-## Simplifying Backpropagation with Softmax and CCE
-
-When using Softmax activation with Categorical Cross-Entropy loss, the gradient simplifies to \( \hat{y} - y \), where \( \hat{y} \) is the predicted probability and \( y \) is the true label. This simplification avoids computing the derivative of the Softmax function explicitly during backpropagation, streamlining the training process.
